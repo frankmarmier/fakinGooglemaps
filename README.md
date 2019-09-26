@@ -1,4 +1,4 @@
-### Available Scripts
+### Notes
 
 Don't forget to set the REACT_APP_GOOGLE_APIKEY in the .env
 
