@@ -10,27 +10,28 @@ import { SearchBox } from "react-google-maps/lib/components/places/SearchBox";
 import _ from "lodash";
 
 const Map = React.memo(props => {
-  console.log(props.markers);
+  const myWayPoints = props.markers.map(m => {
+    const str = m.position.lat + "," + m.position.lng;
+    return { location: str };
+  });
+
   useEffect(() => {
     if (props.markers.length <= 1) return;
     const DirectionsService = new window.google.maps.DirectionsService();
     DirectionsService.route(
       {
-        origin: new window.google.maps.LatLng(
-          props.markers[0].position.lat(),
-          props.markers[0].position.lng()
-        ),
-        destination: new window.google.maps.LatLng(
-          props.markers[1].position.lat(),
-          props.markers[1].position.lng()
-        ),
-        travelMode: window.google.maps.TravelMode.DRIVING
+        origin:
+          props.markers[0].position.lat + "," + props.markers[0].position.lng,
+        waypoints: myWayPoints,
+        destination:
+          props.markers[0].position.lat + "," + props.markers[0].position.lng,
+        travelMode: window.google.maps.TravelMode.WALKING
       },
       (result, status) => {
         if (status === window.google.maps.DirectionsStatus.OK) {
           props.handleDirections(result);
         } else {
-          console.error(`error fetching directions ${result}`);
+          console.error(`error fetching directions ${JSON.stringify(result)}`);
         }
       }
     );
@@ -38,6 +39,7 @@ const Map = React.memo(props => {
 
   return (
     <GoogleMap
+      onClick={props.handleMapClicked}
       ref={props.onMapMounted}
       onBoundsChanged={props.onBoundsChanged}
       defaultZoom={12}
@@ -69,7 +71,15 @@ const Map = React.memo(props => {
         />
       </SearchBox>
       {props.markers.map((marker, i) => (
-        <Marker key={i} position={marker.position} />
+        <Marker
+          onClick={props.handleMarkerClick}
+          icon={{
+            url: "https://image.flaticon.com/icons/svg/1241/1241771.svg",
+            scaledSize: new window.google.maps.Size(16, 16)
+          }}
+          key={i}
+          position={marker.position}
+        />
       ))}
       <DirectionsRenderer directions={props.directions} />
     </GoogleMap>
@@ -92,7 +102,6 @@ const AppMap = props => {
       },
       markers: []
     });
-
     /* eslint-disable */
   }, []);
 
@@ -117,8 +126,12 @@ const AppMap = props => {
       }
     });
     const nextMarkers = places.map(place => ({
-      position: place.geometry.location
+      position: {
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng()
+      }
     }));
+
     const nextCenter = _.get(nextMarkers, "0.position", state.center);
     setState({
       ...state,
@@ -130,10 +143,25 @@ const AppMap = props => {
   const handleDirections = result => {
     setState({ ...state, directions: result });
   };
-
+  const handleMarkerClick = props => {
+    console.log(props);
+    console.log(props.latLng.lat());
+    console.log(props.latLng.lng());
+  };
+  const handleMapClicked = e => {
+    setState({
+      ...state,
+      markers: [
+        ...state.markers,
+        { position: { lat: e.latLng.lat(), lng: e.latLng.lng() } }
+      ]
+    });
+  };
   return (
     <div style={{ height: "50vh" }}>
       <WrapperMap
+        handleMapClicked={handleMapClicked}
+        handleMarkerClick={handleMarkerClick}
         directions={state.directions}
         onBoundsChanged={onBoundsChanged}
         center={state.center}
