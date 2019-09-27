@@ -3,12 +3,39 @@ import {
   GoogleMap,
   withScriptjs,
   withGoogleMap,
-  Marker
+  Marker,
+  DirectionsRenderer
 } from "react-google-maps";
 import { SearchBox } from "react-google-maps/lib/components/places/SearchBox";
 import _ from "lodash";
 
 const Map = React.memo(props => {
+  console.log(props.markers);
+  useEffect(() => {
+    if (props.markers.length <= 1) return;
+    const DirectionsService = new window.google.maps.DirectionsService();
+    DirectionsService.route(
+      {
+        origin: new window.google.maps.LatLng(
+          props.markers[0].position.lat(),
+          props.markers[0].position.lng()
+        ),
+        destination: new window.google.maps.LatLng(
+          props.markers[1].position.lat(),
+          props.markers[1].position.lng()
+        ),
+        travelMode: window.google.maps.TravelMode.DRIVING
+      },
+      (result, status) => {
+        if (status === window.google.maps.DirectionsStatus.OK) {
+          props.handleDirections(result);
+        } else {
+          console.error(`error fetching directions ${result}`);
+        }
+      }
+    );
+  }, [props.markers]);
+
   return (
     <GoogleMap
       ref={props.onMapMounted}
@@ -44,6 +71,7 @@ const Map = React.memo(props => {
       {props.markers.map((marker, i) => (
         <Marker key={i} position={marker.position} />
       ))}
+      <DirectionsRenderer directions={props.directions} />
     </GoogleMap>
   );
 });
@@ -53,6 +81,7 @@ const WrapperMap = withScriptjs(withGoogleMap(Map));
 const AppMap = props => {
   const [state, setState] = useState({});
   const refs = {};
+
   useEffect(() => {
     setState({
       ...state,
@@ -63,6 +92,7 @@ const AppMap = props => {
       },
       markers: []
     });
+
     /* eslint-disable */
   }, []);
 
@@ -90,20 +120,28 @@ const AppMap = props => {
       position: place.geometry.location
     }));
     const nextCenter = _.get(nextMarkers, "0.position", state.center);
-    setState({ ...state, center: nextCenter, markers: nextMarkers });
+    setState({
+      ...state,
+      center: nextCenter,
+      markers: [...state.markers, ...nextMarkers]
+    });
   };
 
-  console.log("markers", state.markers);
+  const handleDirections = result => {
+    setState({ ...state, directions: result });
+  };
 
   return (
     <div style={{ height: "50vh" }}>
       <WrapperMap
+        directions={state.directions}
         onBoundsChanged={onBoundsChanged}
         center={state.center}
         onMapMounted={onMapMounted}
         markers={state.markers}
         onSearchBoxMounted={onSearchBoxMounted}
         onPlacesChanged={onPlacesChanged}
+        handleDirections={handleDirections}
         googleMapURL={`https://maps.googleapis.com/maps/api/js?key=AIzaSyC4R6AN7SmujjPUIGKdyao2Kqitzr1kiRg&v=3.exp&libraries=geometry,drawing,places&key=${process.env.REACT_APP_GOOGLE_APIKEY}`}
         loadingElement={<div style={{ height: "100%" }} />}
         containerElement={<div style={{ height: "100%" }} />}
